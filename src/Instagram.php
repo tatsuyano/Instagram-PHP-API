@@ -32,6 +32,11 @@ class Instagram
     const API_OAUTH_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 
     /**
+     * The Realtime API URL.
+     */
+    const API_SUBSCRIPTIONS_URL = 'https://api.instagram.com/v1/subscriptions/';
+
+    /**
      * The Instagram API Key.
      *
      * @var string
@@ -103,6 +108,7 @@ class Instagram
             $this->setApiKey($config['apiKey']);
             $this->setApiSecret($config['apiSecret']);
             $this->setApiCallback($config['apiCallback']);
+            $this->setApiVerifyToken($config['apiVerifyToken']);
         } elseif (is_string($config)) {
             // if you only want to access public data
             $this->setApiKey($config);
@@ -559,6 +565,59 @@ class Instagram
         $result = $this->_makeOAuthCall($apiData);
 
         return !$token ? $result : $result->access_token;
+    }
+
+    /**
+     * Subscription of the Real-time Photo Updates.
+     * User subscriptions only.
+     *
+     * @param string $verify_token
+     * @param string $callback_url
+     *
+     * @return bool
+     */
+    public function setSubscriptionsUser($callbackurl)
+    {
+        $apiData = array(
+            'client_id'     => $this->getApiKey(),
+            'client_secret' => $this->getApiSecret(),
+            'object'        => 'user',
+            'aspect'        => 'media',
+            'verify_token'  => $this->getApiVerifyToken(),
+            'callback_url'  => $callbackurl,
+        );
+
+        $apiHost = self::API_SUBSCRIPTIONS_URL;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $apiHost);
+        curl_setopt($ch, CURLOPT_POST, count($apiData));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($apiData));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: application/json'));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+        $jsonData = curl_exec($ch);
+
+        if (!$jsonData) {
+            throw new InstagramException('Error: setSubscriptionsUser() - cURL error: ' . curl_error($ch));
+        }
+
+        curl_close($ch);
+
+        return json_decode($jsonData);
+    }
+
+    private $_verifytoken;
+
+    public function setApiVerifyToken($verifytoken)
+    {
+        $this->_verifytoken = $verifytoken;
+    }
+
+    public function getApiVerifyToken()
+    {
+        return $this->_verifytoken;
     }
 
     /**
